@@ -1513,6 +1513,24 @@ func runDaemon(addr string) {
 	}
 }
 
+func preflightProbe(target string) error {
+	raw := target
+	raw = strings.TrimPrefix(raw, "http://")
+	raw = strings.TrimPrefix(raw, "https://")
+	if idx := strings.Index(raw, "/"); idx != -1 {
+		raw = raw[:idx]
+	}
+	if !strings.Contains(raw, ":") {
+		raw = raw + ":8090"
+	}
+	conn, err := net.DialTimeout("tcp", raw, 2*time.Second)
+	if err != nil {
+		return err
+	}
+	_ = conn.Close()
+	return nil
+}
+
 func main() {
 	daemonAddr := flag.String("daemon", "", "Run in headless background daemon mode on address (e.g. :8080)")
 	connectAddr := flag.String("connect", "", "Connect TUI viewer to a running fleet-daemon (e.g. localhost:8080)")
@@ -1525,6 +1543,16 @@ func main() {
 
 	remoteURL := ""
 	if *connectAddr != "" {
+		fmt.Printf("🔍 Probing connection to fleet-daemon at %s...\n", *connectAddr)
+		if err := preflightProbe(*connectAddr); err != nil {
+			fmt.Printf("❌ Connection Failed: Cannot reach fleet-daemon at %s\n", *connectAddr)
+			fmt.Printf("   Details: %v\n", err)
+			fmt.Println("   👉 Troubleshooting Hints:")
+			fmt.Println("      1. Verify the daemon is running on the target machine (--daemon :8090).")
+			fmt.Println("      2. Ensure port 8090/tcp is allowed through firewalls (e.g. firewall-cmd or ufw).")
+			fmt.Println("      3. Check network routing and IP reachability.")
+			os.Exit(1)
+		}
 		addr := *connectAddr
 		if !strings.HasPrefix(addr, "http://") && !strings.HasPrefix(addr, "https://") {
 			addr = "http://" + addr
