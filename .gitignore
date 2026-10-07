@@ -1,0 +1,25 @@
+# Compiled binaries
+fleet-tui
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Local inventory & user configuration (never commit real hosts)
+hosts.json
+settings.json
+.config/
+
+# Private keys & credentials
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+.env
+
+# Backups & logs
+*.bak*
+*.log
+*.tmp
+nohup.out
