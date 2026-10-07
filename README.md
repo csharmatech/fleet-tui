@@ -57,23 +57,41 @@ Best for individual developers, homelabs, or ad-hoc debugging on a single machin
 - Zero listening network ports, zero daemons.
 
 #### Mode B: Centralized Team Mode (Daemon + Shared Viewers)
-Best for operations teams monitoring shared infrastructure without causing an SSH connection storm:
+Best for operations teams monitoring shared infrastructure without causing duplicate SSH connection storms across workstations.
 
-1. **Start the Headless Poller Daemon** on your central management server or jump box:
-   ```bash
-   ./fleet-tui --daemon :8090 &
-   ```
-   - Sweeps all fleet nodes via SSH once every 2 seconds in the background.
-   - Holds live metrics in memory and exposes a lightweight REST API (`/api/v1/telemetry`).
-   - Zero TUI rendered on the server.
+##### 📋 Recommended Best Practices & Operational Workflow:
 
-2. **Connect TUI Viewers** from anywhere on your team:
-   ```bash
-   ./fleet-tui --connect <server-ip>:8090
-   ```
-   - Multiple users can attach their visual TUI dashboards simultaneously.
-   - **Zero redundant SSH load**: Target servers are only probed once by the daemon.
-   - **Real-Time Synchronization**: If any team member adds (`[n]`) or deletes (`[x]`) a server, it updates the central daemon and reflects on all connected screens within 2 seconds.
+1. **Designate a Central Monitoring Server (Single Source of Truth)**:
+   - Run the headless poller daemon 24/7 on your central management server or jump box:
+     ```bash
+     ./fleet-tui --daemon :8090 &
+     ```
+   - **Centralized Inventory Management**: Always perform fleet onboarding (`[n]` add) or node decommissioning (`[x]` delete) exclusively on this central server—either by editing `hosts.json` directly or by launching a local admin viewer on that server:
+     ```bash
+     ./fleet-tui --connect localhost:8090
+     ```
+   - This keeps your server inventory, authorized SSH keys, and network routes maintained in one authoritative, secure location.
+
+2. **Configure Central Server Firewall**:
+   > [!IMPORTANT]
+   > **Firewall & Network Prerequisite**:
+   > Ensure the listening TCP port (e.g. `8090/tcp`) is allowed through the firewall on your central daemon host so remote team viewers can connect:
+   > ```bash
+   > # RHEL / AlmaLinux / Rocky Linux (firewalld):
+   > sudo firewall-cmd --permanent --add-port=8090/tcp && sudo firewall-cmd --reload
+   >
+   > # Ubuntu / Debian (ufw):
+   > sudo ufw allow 8090/tcp
+   > ```
+   > *(Note: `fleet-tui --connect` includes an automatic fast-fail pre-flight probe that verifies port reachability before initializing the UI).*
+
+3. **Connect Remote Team Viewers**:
+   - Team members connect their visual TUI dashboards directly to the central server IP:
+     ```bash
+     ./fleet-tui --connect <central-server-ip>:8090
+     ```
+   - **Zero SSH Keys Required on Client Machines**: Remote operators do not need private SSH keys to target nodes on their laptops; the central daemon conducts all sweeps.
+   - **Real-Time Fleet Synchronization**: Any host modifications made on the central server automatically sync and reflect across all connected viewer screens within 2 seconds.
 
 ---
 
