@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net"
 	"os"
 	"strings"
 	"testing"
@@ -131,3 +132,22 @@ func TestLiveStreamDiagnosticToggle(t *testing.T) {
 	}
 }
 
+
+func TestPreflightProbe(t *testing.T) {
+	// Test failure on closed / unreachable port
+	err := preflightProbe("127.0.0.1:59999")
+	if err == nil {
+		t.Fatal("expected preflightProbe to fail on unused port 59999, but succeeded")
+	}
+
+	// Test success on an active listener
+	l, listenErr := net.Listen("tcp", "127.0.0.1:0")
+	if listenErr != nil {
+		t.Fatalf("failed to open test listener: %v", listenErr)
+	}
+	defer l.Close()
+
+	if err := preflightProbe(l.Addr().String()); err != nil {
+		t.Fatalf("expected preflightProbe to succeed on %s, got: %v", l.Addr().String(), err)
+	}
+}
